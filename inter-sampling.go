@@ -6,19 +6,19 @@ import (
 	"os"
 	"bufio"
 	"strings"
-	"time"
+	// "time"
 	"math/rand"
 	"math"
 	"sync"
 )
 
 var (
-	DATASET_FILE = "text5"
-	WINDOW = 3
+	DATASET_FILE = "data/b.txt"
+	WINDOW = 5
 	WINDOW_FLOAT = 3.0
 	MAX_RATE = 8.0
-	DIMENSION = 100
-	SAMPLE_ACCURACY = 4000
+	DIMENSION = 3
+	SAMPLE_ACCURACY = 8
 	SAMPLE_WORDS []string
 	MODEL_FILE = fmt.Sprintf("%s-AC-MODEL-%d", DATASET_FILE, SAMPLE_ACCURACY)
 	CONTEXT = make(map[string]map[string][]float64)
@@ -166,8 +166,11 @@ func samples() {
 	if SAMPLE_ACCURACY == CONTEXT_LEN {
 		SAMPLE_WORDS = WORDS
 	} else {
-		for _,i := range rand.Perm(CONTEXT_LEN)[:SAMPLE_ACCURACY] {
-			SAMPLE_WORDS = append(SAMPLE_WORDS, WORDS[i])
+		division := CONTEXT_LEN/SAMPLE_ACCURACY
+		r := 0
+		for i := 0; i < SAMPLE_ACCURACY; i++ {
+			SAMPLE_WORDS = append(SAMPLE_WORDS, WORDS[r])
+			r += division
 		}
 	}
 }
@@ -240,24 +243,45 @@ func main() {
 		panic(err)
 	}
 	defer fopen.Close()
-	rand.Seed(time.Now().UnixNano())
-	PIECES = pieceOfSlices()
-	SAMPLE = sliceSplit(randFloats(0, MAX_RATE))
+	// rand.Seed(time.Now().UnixNano())
+	// PIECES = pieceOfSlices()
+	// SAMPLE = sliceSplit(randFloats(0, MAX_RATE))
 	samples()
-	vectors, sims := make([]float64, len(SAMPLE_WORDS)), make([]float64, len(SAMPLE_WORDS))
 	for _,k := range WORDS {
+		_, sims := make([]float64, len(SAMPLE_WORDS)), make([]float64, len(SAMPLE_WORDS))
 		context := CONTEXT[k]
-		sims = []float64{}
-		for _,k1 := range SAMPLE_WORDS {
-			if k == k1 {
-				sims = append(sims, MAX_RATE)
-			} else {
-				sims = append(sims, contextSimilarity(context, CONTEXT[k1]))
+		sMap := make([][]float64, len(SAMPLE_WORDS))
+		activeThreads := 0
+		finishedTasks := make(chan bool)
+		for i,k1 := range SAMPLE_WORDS {
+			go func(i int, k1 string) {
+				var num float64
+				if k == k1 {
+					num = MAX_RATE
+				} else {
+					num = contextSimilarity(context, CONTEXT[k1])
+				}
+				sMap[i] = []float64{float64(i), num}
+				finishedTasks <- true
+			}(i, k1)
+			activeThreads++
+			if activeThreads > 50 {
+				for activeThreads > 50 {
+					<- finishedTasks
+					activeThreads--
+				}
 			}
 		}
-		vectors = createVectors(sims)
+		for activeThreads > 0 {
+			<- finishedTasks
+			activeThreads--
+		}
+		for _,j := range sMap {
+			sims[int(j[0])] = j[1]
+		}
+		// vectors = createVectors(sims)
 		fmt.Fprintf(fopen, "%s", k)
-		fmt.Fprintf(fopen, " %v", vectors)
+		fmt.Fprintf(fopen, " %v", sims)
 		fmt.Fprintf(fopen, "\n")
 		fmt.Printf("%s\r",k)
 	}
