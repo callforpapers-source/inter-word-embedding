@@ -1,6 +1,6 @@
 # inter-word-embedding
-inter-sampling is a non-neural network approach for semantic word embedding that uses context distribution along with euclidean distance and vocab sampling. Methods and formulas will be documented in the first opportunity.
-> note: code is dirty, without comment, without concurrency(which makes the script so lazy), and not user-friendly.
+inter-sampling is a non-neural network approach for semantic word embedding that uses context distribution along with euclidean distance and vocab sampling. Now we are using SVD for dimension reduction and concurrency. Methods and formulas will be documented in the first opportunity.
+> note: code is dirty, without comment, and not user-friendly.
 
 Part of a pre-trained model uploaded. Just run the notebook and extract data/text5-AC-MODEL-4000.tar.gz. If one wants to train another model, it just needs to open the inter-sampling.go and change the "data/text5" to whatever you want. Other variables are as follow:
 
